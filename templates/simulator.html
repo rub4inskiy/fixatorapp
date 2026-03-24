@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ESP Simulator</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <div class="logo">ESP Simulator</div>
+    <a class="btn-sm" href="/" style="text-decoration:none;">Назад</a>
+  </div>
+  <div class="header-right">
+    <span class="muted">Send events to WS + SQLite</span>
+  </div>
+</header>
+
+<section style="padding:16px 20px;">
+  <div class="charts-grid" style="grid-template-columns: 1fr 380px;">
+    <div class="chart-box">
+      <div class="chart-title" style="margin-bottom: 8px;">Device + Налаштування</div>
+
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom: 14px;">
+        <label>
+          Device:
+          <input id="deviceId" style="margin-left:6px; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; width: 240px;" value="esp-logger-scl" />
+        </label>
+
+        <label>
+          RSSI:
+          <input id="rssi" type="number" style="margin-left:6px; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; width: 120px;" value="-55" />
+        </label>
+
+        <label>
+          Buffered:
+          <input id="buffered" type="checkbox" style="margin-left:6px;" />
+        </label>
+
+        <label>
+          Speed:
+          <input id="speed" type="number" step="0.1" style="margin-left:6px; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; width: 140px;" value="1.2" />
+        </label>
+      </div>
+
+      <div class="chart-title" style="margin-bottom: 8px;">Actions</div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="btn-sm" onclick="sendLineStart()">Start (line_start)</button>
+        <button class="btn-sm" onclick="sendLineStop()">Stop (line_stop)</button>
+        <button class="btn-sm" onclick="sendHeartbeat()">Heartbeat</button>
+        <button class="btn-sm" onclick="sendBoot()">Power loss / Boot</button>
+        <button class="btn-sm" onclick="sendNetDown()">Network down</button>
+        <button class="btn-sm" onclick="sendNetUp()">Network up</button>
+      </div>
+
+      <div style="margin-top: 16px; color: var(--muted); font-size: 13px;">
+        Cycle: <span id="cycleVal">0</span> |
+        Last start ts: <span id="lastStartVal">—</span>
+      </div>
+    </div>
+
+    <div class="chart-box">
+      <div class="chart-title" style="margin-bottom: 8px;">Request log</div>
+      <div id="logBox" style="
+        padding:10px 12px;
+        font-family: 'Courier New', monospace;
+        font-size: 11px;
+        line-height: 1.7;
+        overflow-y:auto;
+        max-height: 420px;
+        flex:1;
+        border:1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--panel);
+      "></div>
+    </div>
+  </div>
+</section>
+
+<script>
+  let currentCycle = 0;
+  let lastStartTs = null;
+
+  function unixNow() { return Math.floor(Date.now() / 1000); }
+
+  function getDeviceId() { return document.getElementById("deviceId").value.trim() || "sim-device"; }
+  function getRssi() { return Number(document.getElementById("rssi").value); }
+  function getBuffered() { return !!document.getElementById("buffered").checked; }
+  function getSpeed() { return Number(document.getElementById("speed").value); }
+
+  function setLocalState(cycle, ts) {
+    document.getElementById("cycleVal").textContent = String(cycle ?? 0);
+    document.getElementById("lastStartVal").textContent = ts ? String(ts) : "—";
+  }
+
+  function addLog(msg) {
+    const box = document.getElementById("logBox");
+    const div = document.createElement("div");
+    const ts = new Date().toLocaleTimeString("uk");
+    div.className = "log-line";
+    div.innerHTML = `<span class="log-ts">${ts}</span>${String(msg)}`;
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+    while (box.children.length > 200) box.removeChild(box.firstChild);
+  }
+
+  async function postEvent(event) {
+    const res = await fetch("/api/sim/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(event)
+    }).catch((e) => ({ ok: false, err: String(e) }));
+
+    if (!res || !res.ok) {
+      addLog("ERROR: " + (res && res.err ? res.err : "request failed"));
+      return;
+    }
+    addLog(JSON.stringify(event));
+  }
+
+  async function sendLineStart() {
+    currentCycle += 1;
+    const ts = unixNow();
+    lastStartTs = ts;
+    setLocalState(currentCycle, lastStartTs);
+
+    await postEvent({
+      event_type: "line_start",
+      device_id: getDeviceId(),
+      ts,
+      cycle: currentCycle,
+      buffered: getBuffered(),
+      rssi: getRssi(),
+      speed: getSpeed()
+    });
+  }
+
+  async function sendLineStop() {
+    const ts = unixNow();
+    const dur = (lastStartTs != null) ? (ts - lastStartTs) : null;
+    setLocalState(currentCycle, lastStartTs);
+
+    await postEvent({
+      event_type: "line_stop",
+      device_id: getDeviceId(),
+      ts,
+      cycle: currentCycle,
+      dur,
+      buffered: getBuffered(),
+      rssi: getRssi(),
+      speed: getSpeed()
+    });
+  }
+
+  async function sendHeartbeat() {
+    const ts = unixNow();
+    // uptime (сек) - простий симулятор
+    const uptime = ts % 86400;
+    await postEvent({
+      event_type: "heartbeat",
+      device_id: getDeviceId(),
+      ts,
+      uptime,
+      buf: 0,
+      rssi: getRssi(),
+      buffered: false
+    });
+  }
+
+  async function sendBoot() {
+    const ts = unixNow();
+    const bufAfterReboot = 0;
+    await postEvent({
+      event_type: "boot",
+      device_id: getDeviceId(),
+      ts,
+      buf_after_reboot: bufAfterReboot,
+      version: "sim",
+      buffered: false,
+      rssi: getRssi()
+    });
+  }
+
+  async function sendNetDown() {
+    await postEvent({
+      event_type: "net_down",
+      device_id: getDeviceId(),
+      ts: unixNow(),
+      buffered: getBuffered(),
+      rssi: getRssi()
+    });
+  }
+
+  async function sendNetUp() {
+    await postEvent({
+      event_type: "net_up",
+      device_id: getDeviceId(),
+      ts: unixNow(),
+      buffered: getBuffered(),
+      rssi: getRssi()
+    });
+  }
+
+  setLocalState(currentCycle, lastStartTs);
+</script>
+
+</body>
+</html>
+

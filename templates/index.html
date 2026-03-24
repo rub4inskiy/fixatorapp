@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ESP Line Logger</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+  <div class="header-left">
+    <div class="logo">⚡ ESP Line Logger</div>
+    <div class="device-select-wrap">
+      <select id="deviceSelect" onchange="onDeviceChange()">
+        <option value="">Усі пристрої</option>
+      </select>
+    </div>
+    <div class="device-select-wrap">
+      <select id="periodSelect" onchange="loadTimeline()">
+        <option value="15m">Останні 15 хв</option>
+        <option value="1h" selected>Остання 1 год</option>
+        <option value="6h">Останні 6 год</option>
+        <option value="24h">Останні 24 год</option>
+      </select>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="status-dot" id="wsDot" title="WebSocket"></div>
+    <div class="tcp-badge" id="tcpBadge">TCP ●</div>
+    <span id="dbCount" class="muted">—</span>
+    <a class="btn-sm" href="/sim" style="text-decoration:none;">Simulator</a>
+  </div>
+</header>
+
+<!-- ── Stat Cards ── -->
+<section class="cards">
+  <div class="card" id="cardStatus">
+    <div class="card-label">Лінія</div>
+    <div class="card-value" id="valStatus">IDLE</div>
+  </div>
+  <div class="card">
+    <div class="card-label">Поточний цикл</div>
+    <div class="card-value accent-blue" id="valCycle">—</div>
+  </div>
+  <div class="card">
+    <div class="card-label">Швидкість (поки що)</div>
+    <div class="card-value accent-blue" id="valSpeed">—</div>
+  </div>
+  <div class="card">
+    <div class="card-label">Тривалість</div>
+    <div class="card-value accent-amber" id="valDuration">—</div>
+  </div>
+  <div class="card">
+    <div class="card-label">Всього циклів</div>
+    <div class="card-value accent-blue" id="valTotalCycles">—</div>
+  </div>
+  <div class="card">
+    <div class="card-label">Сер. тривалість</div>
+    <div class="card-value accent-amber" id="valAvgDur">—</div>
+  </div>
+  <div class="card">
+    <div class="card-label">Heartbeat</div>
+    <div class="card-value" id="valHeartbeat">—</div>
+  </div>
+  <div class="card">
+    <div class="card-label">RSSI</div>
+    <div class="card-value" id="valRssi">—</div>
+  </div>
+</section>
+
+<!-- ── Charts ── -->
+<section class="charts-grid">
+  <div class="chart-box wide">
+    <div class="chart-title">Історія стану</div>
+    <div id="timelineLegend" style="color: var(--muted); font-size: 12px; margin-bottom: 10px;">
+      <span style="display:inline-block; width:10px; height:10px; border-radius:3px; background: var(--green); margin-right:6px;"></span>Працює
+      <span style="display:inline-block; width:10px; height:10px; border-radius:3px; background: var(--red); margin-left:14px; margin-right:6px;"></span>Стоїть
+    </div>
+    <svg id="timelineSvg" viewBox="0 0 1000 70" preserveAspectRatio="none" style="width:100%; height:70px; border:1px solid var(--border); border-radius:8px; overflow:hidden;"></svg>
+    <div id="timelineHint" style="color: var(--muted); font-size: 12px; margin-top: 10px;">
+      Клік по червоному сегменту — причина простою.
+    </div>
+  </div>
+  
+  <div class="chart-box" style="grid-column: 1 / -1;">
+    <div class="chart-title">Швидкість (середня за цикл)</div>
+    <canvas id="speedChart"></canvas>
+    <div style="color: var(--muted); font-size: 12px; margin-top: 10px;">
+      Показано середню швидкість для кожного завершеного циклу + значення з heartbeat
+    </div>
+  </div>
+  
+  <div class="chart-box">
+    <div class="chart-title">Причина простою</div>
+
+    <div style="color: var(--muted); font-size: 12px; margin-bottom: 12px;">
+      Оберіть сегмент "стоячи", заповніть причину та коментар.
+    </div>
+
+    <div style="margin-bottom: 10px;">
+      <div style="color: var(--muted); font-size: 12px; margin-bottom: 6px;">Період</div>
+      <div id="selectedDowntimePeriod" style="font-size: 13px;">—</div>
+    </div>
+
+    <div style="margin-bottom: 10px;">
+      <label style="color: var(--muted); font-size: 12px;">
+        Причина
+        <select id="downtimeReason" style="margin-left:6px;">
+          <option value="unknown" selected>Не визначено</option>
+          <option value="planned_maintenance">Планове ТО</option>
+          <option value="lack_material">Немає матеріалу</option>
+          <option value="equipment_failure">Аварія / несправність</option>
+          <option value="operator_stop">Зупинка оператором</option>
+          <option value="logistics">Логістика / очікування</option>
+          <option value="other">Інше</option>
+        </select>
+      </label>
+    </div>
+
+    <div style="margin-bottom: 10px;">
+      <div style="color: var(--muted); font-size: 12px; margin-bottom: 6px;">Коментар</div>
+      <textarea id="downtimeComment" style="width:100%; min-height: 88px; resize: vertical; background: var(--bg); color: var(--text); border:1px solid var(--border); border-radius:6px; padding:8px;"></textarea>
+    </div>
+
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <button class="btn-sm" onclick="saveDowntime()">Зберегти</button>
+      <button class="btn-sm" onclick="clearDowntimeSelection()">Скинути</button>
+    </div>
+
+    <div id="downtimeSaved" style="margin-top: 10px; color: var(--amber); font-size: 12px;"></div>
+  </div>
+</section>
+
+<!-- ── Events Table + Log ── -->
+<section class="bottom-grid">
+  <div class="panel">
+    <div class="panel-header">
+      <span>Останні події</span>
+      <button class="btn-sm" onclick="loadEvents()">↻ Оновити</button>
+    </div>
+    <div class="table-wrap">
+      <table id="eventsTable">
+        <thead>
+          <tr>
+            <th>Час (ESP)</th>
+            <th>Пристрій</th>
+            <th>Подія</th>
+            <th>Цикл</th>
+            <th>Тривалість</th>
+            <th>Буфер</th>
+            <th>RSSI</th>
+          </tr>
+        </thead>
+        <tbody id="eventsBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <span>Лог подій</span>
+      <button class="btn-sm" onclick="clearLog()">Очистити</button>
+    </div>
+    <div id="logBox"></div>
+  </div>
+</section>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>

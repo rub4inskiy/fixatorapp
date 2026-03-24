@@ -1,0 +1,254 @@
+/* ── Reset & Base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #000000;
+  --panel:    #000000;
+  --border:   #222222;
+  --text:     #e6edf3;
+  --muted:    #8b949e;
+  --green:    #3fb950;
+  --red:      #f85149;
+  --blue:     #58a6ff;
+  --amber:    #e3b341;
+  --radius:   10px;
+  --font:     'Segoe UI', system-ui, sans-serif;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  min-height: 100vh;
+}
+
+/* ── Header ── */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-left { display: flex; align-items: center; gap: 16px; }
+.header-right { display: flex; align-items: center; gap: 12px; }
+
+.logo { font-size: 18px; font-weight: 700; color: var(--text); }
+
+.status-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: background 0.3s;
+}
+.status-dot.connected  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.status-dot.error      { background: var(--red); }
+
+.tcp-badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: var(--green)22;
+  color: var(--green);
+  border: 1px solid var(--green)55;
+  transition: all 0.3s;
+}
+.tcp-badge.offline {
+  background: var(--red)22;
+  color: var(--red);
+  border-color: var(--red)55;
+}
+
+.muted { color: var(--muted); font-size: 12px; }
+
+select {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* ── Stat Cards ── */
+.cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px 20px;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 20px;
+  min-width: 120px;
+  flex: 1;
+}
+.card-label { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+.card-value { font-size: 24px; font-weight: 700; color: var(--text); transition: color 0.3s; }
+.card-value.active  { color: var(--green); }
+.card-value.idle    { color: var(--muted); }
+.accent-blue  { color: var(--blue)  !important; }
+.accent-amber { color: var(--amber) !important; }
+.accent-green { color: var(--green) !important; }
+.accent-red   { color: var(--red)   !important; }
+
+/* ── Charts ── */
+.charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 12px;
+  padding: 0 20px 12px;
+}
+
+.chart-box {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.chart-box.wide { grid-column: 1; }
+.chart-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+canvas { max-height: 220px; }
+
+#timelineSvg { background: #000000; }
+
+/* ── Bottom Grid ── */
+.bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 12px;
+  padding: 0 20px 20px;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.btn-sm {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 3px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+.btn-sm:hover { border-color: var(--blue); color: var(--blue); }
+
+/* ── Table ── */
+.table-wrap { overflow-y: auto; max-height: 300px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+thead th {
+  padding: 8px 10px;
+  text-align: left;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--panel);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+tbody tr { border-bottom: 1px solid var(--border)55; transition: background 0.15s; }
+tbody tr:hover { background: var(--border)44; }
+tbody td { padding: 7px 10px; }
+
+.ev-start    { color: var(--green); font-weight: 600; }
+.ev-stop     { color: var(--red);   font-weight: 600; }
+.ev-heartbeat{ color: var(--muted); }
+.ev-boot     { color: var(--amber); font-weight: 600; }
+
+.badge-buf {
+  background: var(--amber)22;
+  color: var(--amber);
+  border: 1px solid var(--amber)44;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 10px;
+}
+
+/* ── Log ── */
+#logBox {
+  padding: 10px 12px;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  line-height: 1.7;
+  overflow-y: auto;
+  max-height: 300px;
+  flex: 1;
+}
+.log-line { color: var(--text); }
+.log-ts   { color: var(--muted); margin-right: 6px; }
+.log-tcp  { color: var(--blue); }
+.log-warn { color: var(--amber); }
+.log-err  { color: var(--red); }
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .charts-grid  { grid-template-columns: 1fr; }
+  .bottom-grid  { grid-template-columns: 1fr; }
+  .cards        { gap: 8px; }
+  .card-value   { font-size: 18px; }
+}
+
+/* ── Pulse animation for ACTIVE ── */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
+}
+.pulsing { animation: pulse 1.5s ease-in-out infinite; }
+
+/* ── Timeline SVG ── */
+.timeline-seg { transition: stroke 0.15s, stroke-width 0.15s, opacity 0.15s; }
+.timeline-run { fill: var(--green); opacity: 0.9; }
+.timeline-down { fill: var(--red); opacity: 0.85; }
+
+/* Downtime reason colors */
+.timeline-down-reason-unknown { fill: #8b949e !important; } /* gray - undefined */
+.timeline-down-reason-planned_maintenance { fill: #58a6ff !important; } /* blue - planned */
+.timeline-down-reason-lack_material { fill: #d2a8ff !important; } /* purple - material */
+.timeline-down-reason-equipment_failure { fill: #f85149 !important; } /* red - failure */
+.timeline-down-reason-operator_stop { fill: #e3b341 !important; } /* amber - operator */
+.timeline-down-reason-logistics { fill: #fa9a28 !important; } /* orange - logistics */
+.timeline-down-reason-other { fill: #a0a0a0 !important; } /* light gray - other */
